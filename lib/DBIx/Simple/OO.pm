@@ -3,7 +3,17 @@ package DBIx::Simple::OO;
 use strict;
 use vars qw[$VERSION];
 
-$VERSION = 0.01;
+$VERSION = 0.02;
+
+use DBIx::Simple;
+
+if ($DBIx::Simple::VERSION >= 1.33) {
+    # Monkey patch an @ISA instead of ::Result for recent versions of
+    # DBIx::Simple, because they support ->object and ->objects out of the
+    # box -- but with a different class name.
+
+    push @DBIx::Simple::Result::RowObject::ISA, 'DBIx::Simple::OO::Item';
+} else {
 
 =head1 NAME
 
@@ -39,6 +49,13 @@ DBIx::Simple::OO
 
 =head1 DESCRIPTION
 
+B<DBIx::Simple now has support for C<object> and C<objects> built into
+it.> I<Using DBIx::Simple::OO is no longer necessary if you change
+C<DBIx::Simple::OO::Item> to C<DBIx::Simple::Result::RowObject> and
+use 1.33 or newer. DBIx::Simple::OO 0.02 implements a work-around to
+avoid name clashes, but using 0.01 with DBIx::Simple 1.33+ could go
+wrong.>
+
 This module provides a possibility to retrieve rows from a 
 database as objects, rather than the traditional C<array ref>
 or C<hash ref>. This provides all the usual benefits of using
@@ -48,7 +65,7 @@ retrieval.
 
 =head1 HOW IT WORKS
 
-C<DBIx::Simple::OO> declares it's 2 methods in the C<DBIx::Simple::Result>
+C<DBIx::Simple::OO> declares its 2 methods in the C<DBIx::Simple::Result>
 namespace, transforming the rows retrieved from the database to
 full fledged objects.
 
@@ -56,25 +73,23 @@ full fledged objects.
 
 ### the retrieval methods are in the DBIx::Simple::Result package
 
-package DBIx::Simple::Result;
-
 =head1 METHODS
 
 This module subclasses C<DBIx::Simple> and only adds the following
 methods. Any other method, like the C<new> call should be looked up
 in the C<DBIx::Simple> manpage instead.
 
-=head2 $obj = = $db->query(....)->object( );
+=head2 $obj = $db->query(....)->object( );
 
 Returns the first result from your query as an object.
 
 =cut
 
-sub object {
-    my $self = shift or return;
+    *DBIx::Simple::Result::object = sub {
+        my $self = shift or return;
 
-    return $self->_href_to_obj( $self->hash );
-}
+        return $self->_href_to_obj( $self->hash );
+    };
 
 =head2 @objs = $db->query(....)->objects( );
 
@@ -82,14 +97,16 @@ Returns the results from your query as a list of objects.
 
 =cut
 
-sub objects {
-    my $self = shift or return;
- 
-    return map { $self->_href_to_obj( $_ ) } $self->hashes;
+    *DBIx::Simple::Result::objects = sub {
+        my $self = shift or return;
+     
+        return map { $self->_href_to_obj( $_ ) } $self->hashes;
+    };
+
+    ### convert the hashref to a nice O::A object
 }
 
-### convert the hashref to a nice O::A object
-sub _href_to_obj {
+*DBIx::Simple::Result::_href_to_obj = sub {
     my $self = shift or return;
     my $href = shift or return;
     
@@ -104,7 +121,7 @@ sub _href_to_obj {
     }
 
     return $obj;
-}
+};
 
 =head1 ACCESSORS
 

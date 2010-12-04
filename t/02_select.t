@@ -11,13 +11,19 @@ BEGIN {
 }
 
 ### dummy package declaration to return some 
-{   package DBIx::Simple::OO::Mock;
-    
-    ### make it use these methods instead, for testing purposes
-    unshift @DBIx::Simple::Result::ISA, __PACKAGE__;
-    
-    
+{   package DBIx::Simple::Result::Mock;
+    push @DBIx::Simple::Result::Mock::ISA, 'DBIx::Simple::Result';
+   
+    my $counter = 0; 
+
     ### declare the DBIx::Simple::Result methods
+    sub _die { }
+
+    # DBIx::Simple >= 1.33
+    sub array   { return [ 1, 2 ] if ++$counter < 4; return; }
+    sub columns { return 'a', 'b' }
+
+    # DBIx::Simple <= 1.32
     sub hash    { return { a => 1, b => 2 } }
     sub hashes  { return { a => 1 }, { b => 2 } }
 }    
@@ -25,7 +31,8 @@ BEGIN {
 
 my $Class   = 'DBIx::Simple::OO';
 my $OClass  = $Class . '::Item';
-my $RClass  = 'DBIx::Simple::Result';
+
+my $RObj = bless {}, 'DBIx::Simple::Result::Mock';
 
 use_ok( $Class );
 
@@ -36,9 +43,9 @@ use_ok( $Class );
 
     while (my ($meth,$cnt) = each %meth) {
 
-        can_ok( $RClass,         $meth );
+        can_ok( $RObj,         $meth );
 
-        my @res = $RClass->$meth( );
+        my @res = $RObj->$meth( );
         is( scalar(@res), $cnt, "   Got $cnt results for '$meth'" );
         
         for my $obj (@res) {
