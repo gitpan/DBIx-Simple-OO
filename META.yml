@@ -22,4 +22,4 @@ requires:
   Test::More: 0
 resources:
   repository: git://github.com/jib/dbix-simple-oo.git
-version: 0.02
+version: 0.03
